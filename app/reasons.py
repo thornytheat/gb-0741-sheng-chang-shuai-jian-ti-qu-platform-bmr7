@@ -9,6 +9,13 @@ REASONS = {
     'DYNAMIC_RANGE': '声衰减深度不足', 'WINDOW_TOO_SHORT': '回归区间采样点不足',
     'NON_DECAYING': '回归斜率无效', 'LOW_LINEARITY': '回归线性度低于阈值',
     'T_DISAGREEMENT': 'T20 与 T30 差异超过阈值', 'DUPLICATE_ROW': '同一采样点的相同副本',
+    'BASELINE_MISSING': '该频带没有改造前基线',
+    'BAND_MISSING': '某一侧没有该频带',
+    'BASIS_MISMATCH': '两侧校准口径不同，数值不可直接相减',
+    'BASIS_UNKNOWN': '旧归档未登记校准口径',
+    'VERSION_MISMATCH': '两侧规则版本不同',
+    'METRIC_UNAVAILABLE': '该档在某一侧未出具 RT60',
+    'COMPARISON_STALE': '任一侧归档已修正，旧差异失效',
 }
 
 

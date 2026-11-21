@@ -2,7 +2,7 @@ import sqlite3
 from datetime import datetime, timezone
 from time import perf_counter_ns
 
-from app.config import RULE_VERSION
+from app.config import CALIBRATION_BASIS, RULE_VERSION
 from app.errors import Problem
 from app.evidence import canonical, sha256
 from app.modules.m1_intake.service import load, summary
@@ -30,6 +30,7 @@ def run(store, source_id):
         raise Problem('UNBALANCED', '频带或数据行存在差额', 409)
     payload = canonical(result)
     manifest = {'id': key(source_id), 'source_id': source_id, 'version': RULE_VERSION,
+                'basis': CALIBRATION_BASIS,
                 'created_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'),
                 'elapsed_ms': (perf_counter_ns() - start) // 1_000_000, 'digest': sha256(payload)}
     try:
@@ -37,6 +38,10 @@ def run(store, source_id):
             connection.execute('BEGIN IMMEDIATE')
             added = repository.insert(connection, manifest, payload)
             archived = repository.read(connection, manifest['id'])
+            if (not added and archived['manifest']['basis'] is not None
+                    and archived['manifest']['basis'] != manifest['basis']):
+                raise Problem('ARCHIVE_CONFLICT',
+                              '同一来源与规则版本已有不同校准口径的归档，请先核对口径或提升规则版本', 409)
             if (archived['manifest']['digest'] != manifest['digest'] or
                     sha256(canonical(archived['result'])) != manifest['digest']):
                 raise Problem('EVIDENCE_CHANGED', '重算结果与归档证据不符', 409)

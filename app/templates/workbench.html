@@ -19,7 +19,7 @@
       <span class="nav-group">分析</span>
       <a href="#decay" aria-current="page">能量衰减</a><a href="#fit">拟合时段</a><a href="#noise">噪声判废</a><a href="#reconcile">频段勾稽</a>
       <span class="nav-group">留档</span>
-      <a href="#archive">复测归档</a>
+      <a href="#archive">复测归档</a><a href="#comparison">改造差异</a>
     </nav>
     <div class="rail-foot"><span class="dot"></span><div>规则版本<small>{{ version }}</small></div></div>
   </aside>
@@ -54,6 +54,29 @@
         <section class="panel reconcile" id="reconcile"><div class="panel-head"><h2>频段勾稽</h2><span id="balance" class="muted">—</span></div><div id="band-table" class="table-wrap"><p class="empty">暂无频带结论</p></div></section>
       </div>
       <div class="grid auxiliary">
+        <section class="panel" id="comparison" hidden>
+          <div class="panel-head"><h2>改造差异</h2><span id="comparison-summary" class="muted">—</span></div>
+          <div class="body">
+            <form id="comparison-form" class="compare-form">
+              <label>改造后归档<select id="after-run" name="after_run_id" required><option value="">—</option></select></label>
+              <label>改造前基线<select id="before-run" name="before_run_id"><option value="">整厅不限</option></select></label>
+              <button type="submit" class="button primary">生成差异</button>
+            </form>
+            <p class="muted compare-hint">两侧口径一致才出改善值；口径不同或未登记的频带只列原因，不参与相减。</p>
+            <div class="compare-actions">
+              <button type="button" class="button" id="publish-confirmed" disabled>发布可确认频带</button>
+              <button type="button" class="button" id="publish-all" disabled>整厅发布</button>
+              <span id="comparison-state" class="muted"></span>
+            </div>
+          </div>
+          <div id="comparison-bands" class="table-wrap"><p class="empty">先选择一个改造后归档与基线</p></div>
+          <div id="comparison-reasons" class="body"></div>
+        </section>
+        <section class="panel" id="publication" hidden>
+          <div class="panel-head"><h2>差异发布</h2><span id="publication-scope" class="muted">—</span></div>
+          <div id="publication-body" class="body"><p class="empty">尚无发布</p></div>
+          <div id="publication-list" class="table-wrap"></div>
+        </section>
         <section class="panel" id="intake" hidden><div class="panel-head"><h2>脉冲响应收件</h2><span class="muted">CSV</span></div><div class="body"><form id="upload"><label>上传响应<input type="file" name="file" accept=".csv,text/csv" required></label><button type="submit" class="button">收件并分析</button></form><div id="intake-data"></div></div><div id="intake-issues" class="table-wrap"></div></section>
         <section class="panel" id="calibration" hidden><div class="panel-head"><h2>量纲校准</h2><span class="muted">Pa</span></div><div id="calibration-data" class="table-wrap"></div></section>
         <section class="panel" id="archive" hidden><div class="panel-head"><h2>复测归档</h2><button class="button" type="button" id="rerun" disabled>重跑归档</button></div><div id="run-list" class="table-wrap"></div></section>

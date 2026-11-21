@@ -60,3 +60,12 @@ main { flex: 1; padding: 19px 24px 22px; min-width: 0; }
 #upload input { max-width: 100%; }
 @media (max-width: 950px) { .app { grid-template-columns: 147px minmax(0, 1fr); } .analysis { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'graph' 'fit' 'noise' 'reconcile'; } main, .topbar { padding-inline: 12px; } }
 @media (max-width: 595px) { .app { display: block; } .rail { position: static; height: auto; } .brand { min-height: auto; } .rail nav { display: flex; flex-wrap: wrap; } .nav-group, .rail-foot { display: none; } .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } .kpi { padding-inline: 7px; } .toolbar select { max-width: 100%; } }
+.compare-form { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px 12px; }
+.compare-form label { display: grid; gap: 4px; font-size: 11px; color: var(--muted); min-width: 190px; }
+.compare-form input { padding: 5px 7px; border: 1px solid var(--line); background: var(--panel-alt); color: var(--ink); font: 12px var(--mono); }
+.compare-hint { margin-top: 6px; font-size: 11px; }
+.compare-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-top: 10px; }
+.reason-heading { font-size: 12px; margin-bottom: 6px; }
+.reason-list { display: grid; gap: 3px; font-size: 11px; }
+#comparison-bands .ledger td { white-space: normal; }
+@media (max-width: 595px) { .compare-form label { min-width: 0; flex: 1 1 100%; } }

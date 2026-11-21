@@ -27,13 +27,13 @@ function action(label, click) {
   return button;
 }
 
-function evidence(title, body) {
+export function evidence(title, body) {
   $('evidence-title').textContent = title;
   $('evidence-text').textContent = JSON.stringify(body, null, 2);
   $('evidence').showModal();
 }
 
-function table(host, headers, rows, selected = -1) {
+export function table(host, headers, rows, selected = -1) {
   if (!rows.length) {
     $(host).replaceChildren(el('p', '暂无记录', 'empty'));
     return;
@@ -128,8 +128,87 @@ export function calibration(data) {
 }
 
 export function history(runs, current, pick) {
-  table('run-list', ['批次', '来源摘要', '规则', '归档时间 UTC', '耗时 ms', '结果摘要'], runs.map((row) => [
-    action(row.id.slice(0, 12), () => pick(row.id)), row.source_id.slice(0, 12), row.version, row.created_at.slice(0, 19).replace('T', ' '),
+  table('run-list', ['批次', '来源摘要', '规则', '口径', '归档时间 UTC', '耗时 ms', '结果摘要'], runs.map((row) => [
+    action(row.id.slice(0, 12), () => pick(row.id)), row.source_id.slice(0, 12), row.version,
+    row.basis ?? el('span', '旧归档 · 未登记', 'warn'), row.created_at.slice(0, 19).replace('T', ' '),
     row.elapsed_ms, action(row.digest.slice(0, 12), () => evidence('运行清单', row)),
   ]), runs.findIndex((row) => row.id === current));
+}
+
+export function archiveOptions(runs) {
+  const options = runs.map((row) => new Option(
+    `${row.id.slice(0, 8)} · ${row.source_id.slice(0, 8)} · ${row.basis ?? '口径未登记'}`,
+    row.id));
+  $('after-run').replaceChildren(new Option('—', ''), ...options);
+  $('before-run').replaceChildren(new Option('整厅不限', ''), ...options);
+}
+
+const basisLabels = {BASIS_MISMATCH: '口径不同', BASIS_UNKNOWN: '口径未登记', VERSION_MISMATCH: '规则版本不同',
+  BAND_MISSING: '缺频带', BASELINE_MISSING: '缺基线', METRIC_UNAVAILABLE: '该档未出具'};
+const compareStates = {COMPARABLE: ['可比', 'good'], PARTIAL: ['部分可比', 'warn'], NOT_COMPARABLE: ['不可比', 'bad']};
+
+function sideLabel(side) {
+  if (!side?.run_id) return '—';
+  return `${side.run_id.slice(0, 8)} · ${side.version ?? '—'} · ${side.basis ?? '未登记'}`;
+}
+
+function metricCell(metric) {
+  if (!metric) return '—';
+  if (metric.status !== 'CONFIRMED') {
+    return el('span', metric.reason?.message ?? '不可比', 'warn');
+  }
+  const sign = metric.improvement_s > 0 ? '+' : '';
+  const text = `${sign}${fixed(metric.improvement_s)} s`;
+  const span = el('span', text, metric.direction === 'REGRESSED' ? 'bad' : 'good');
+  span.title = `${fixed(metric.before_s)} → ${fixed(metric.after_s)}`;
+  return span;
+}
+
+export function comparison(data, pick) {
+  const rows = data?.result?.bands ?? [];
+  const summary = data?.result?.summary;
+  $('comparison-summary').textContent = summary
+    ? `${summary.comparable}/${summary.bands} 频带可比 · ${summary.confirmed_metrics} 项可确认`
+    : '—';
+  $('comparison-state').textContent = data?.state?.stale ? '旧差异已失效' : data ? '差异为当前版本' : '';
+  $('comparison-state').className = data?.state?.stale ? 'bad' : data ? 'muted' : 'muted';
+  table('comparison-bands', ['Hz', '判定', '改造前版本', '改造后版本', 'T20', 'T30', '证据'], rows.map((row) => {
+    const [label, style] = compareStates[row.status];
+    return [action(`${row.band_hz}`, () => pick?.(row.band_hz)), el('span', label, `status-label ${style}`),
+      sideLabel(row.before), sideLabel(row.after),
+      metricCell(row.metrics.find((item) => item.metric === 't20')),
+      metricCell(row.metrics.find((item) => item.metric === 't30')),
+      action('查看', () => evidence(`${row.band_hz} Hz 差异`, row))];
+  }), -1);
+  const reasons = rows.flatMap((row) => row.reasons.map((item) => ({band_hz: row.band_hz, ...item})));
+  if (!reasons.length) {
+    $('comparison-reasons').replaceChildren(el('p', '全部频带可比，无不可比项', 'muted'));
+    return;
+  }
+  const list = el('div', null, 'reason-list');
+  for (const item of reasons) {
+    list.append(el('p', `${item.band_hz} Hz · ${basisLabels[item.code] ?? item.message}：${item.message}`,
+      item.code === 'COMPARISON_STALE' ? 'bad' : 'warn'));
+  }
+  $('comparison-reasons').replaceChildren(el('h3', '不可比项及原因', 'reason-heading'), list);
+}
+
+export function publication(data, releases) {
+  if (!data) {
+    $('publication-scope').textContent = '—';
+    $('publication-body').replaceChildren(el('p', '尚无发布', 'empty'));
+    table('publication-list', ['范围', '差异版本', '发布时间 UTC'], []);
+    return;
+  }
+  const body = data.publication;
+  $('publication-scope').textContent = body.scope === 'confirmed' ? '已发布可确认频带' : '整厅发布';
+  const items = [['发布编号', data.id.slice(0, 12)], ['依据差异', body.comparison_id.slice(0, 12)],
+    ['发布频带', `${body.summary.published_bands} / 共 ${body.summary.published_bands + body.summary.deferred_bands}`],
+    ['可确认项', body.summary.confirmed_metrics], ['不可比频带', body.summary.deferred_bands],
+    ['状态', data.state.stale ? '已失效，需重算' : '当前有效']];
+  $('publication-body').replaceChildren(specs(items));
+  table('publication-list', ['范围', '依据差异', '发布批次', '发布频带', '时间 UTC', '证据'], (releases ?? []).map((row) => [
+    row.scope === 'confirmed' ? '可确认频带' : '整厅', row.comparison_id.slice(0, 8), row.id.slice(0, 8),
+    row.summary?.published_bands ?? '—', row.created_at.slice(0, 19).replace('T', ' '),
+    action('查看', () => evidence('发布快照', row))]));
 }

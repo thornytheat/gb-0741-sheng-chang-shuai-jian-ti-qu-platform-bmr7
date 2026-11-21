@@ -2,15 +2,19 @@ import {draw} from './curve.js';
 import * as panels from './panels.js';
 
 const {$, fixed} = panels;
-const state = {result: null, manifest: null, band: 500, cursor: null, source: null, busy: false, view: 'decay'};
+const state = {result: null, manifest: null, band: 500, cursor: null, source: null, busy: false, view: 'decay',
+  comparison: null, publication: null};
 const nav = [...document.querySelectorAll('nav a')];
-const auxiliary = ['intake', 'calibration', 'archive'];
+const auxiliary = ['comparison', 'publication', 'intake', 'calibration', 'archive'];
 
 async function request(path, options) {
   const response = await fetch(path, options);
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.message || `请求失败 · HTTP ${response.status}`);
+    const error = new Error(body.message || `请求失败 · HTTP ${response.status}`);
+    error.status = response.status;
+    error.code = body.code;
+    throw error;
   }
   return response.json();
 }
@@ -25,6 +29,9 @@ function controls() {
   document.querySelector('[form="run-form"]').disabled = state.busy;
   $('upload').querySelector('button').disabled = state.busy;
   $('rerun').disabled = state.busy || !state.manifest;
+  $('publish-confirmed').disabled = state.busy || !state.comparison || state.comparison.state?.stale;
+  $('publish-all').disabled = state.busy || !state.comparison || state.comparison.state?.stale;
+  $('comparison-form').querySelector('button').disabled = state.busy;
   const link = $('export');
   if (state.manifest) {
     link.href = `/api/runs/${state.manifest.id}/export`;
@@ -105,6 +112,7 @@ async function loadHistory() {
     render(archived.result, archived.manifest);
     await loadHistory();
   }));
+  panels.archiveOptions(list.runs);
 }
 
 async function archive(spec) {
@@ -112,6 +120,58 @@ async function archive(spec) {
   render(body.result, body.manifest);
   if (state.view === 'archive') await loadHistory();
   feedback(body.reused ? '已复用该批次' : '提取完成，已归档');
+}
+
+function showComparison(body) {
+  state.comparison = body;
+  const after = body?.result?.after_run_id;
+  const before = body?.result?.before_run_id;
+  if (after) $('after-run').value = after;
+  $('before-run').value = before ?? '';
+  $('comparison-state').textContent = body?.state?.stale
+    ? `任一侧归档已修正：${body.state.reasons.map((item) => String(item.run_id).slice(0, 8)).join('、')}`
+    : body ? '两侧均为当前归档' : '';
+  $('comparison-state').className = body?.state?.stale ? 'bad' : 'muted';
+  panels.comparison(body, (band) => {
+    const curve = body?.result?.bands.find((row) => row.band_hz === band);
+    if (curve) panels.evidence(`${band} Hz 差异`, curve);
+  });
+  controls();
+}
+
+async function loadComparison(id) {
+  const body = await request(`/api/comparisons/${id}`);
+  showComparison(body);
+  return body;
+}
+
+async function loadPublication() {
+  let latest = null;
+  try {
+    latest = await request('/api/publications/latest');
+  } catch (error) {
+    if (error.status !== 404) throw error;
+  }
+  const list = await request('/api/publications');
+  state.publication = latest;
+  panels.publication(latest, list.publications);
+}
+
+async function generateComparison(spec) {
+  const body = await request('/api/comparisons', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(spec)});
+  showComparison(body);
+  feedback(body.reused ? '差异已存在，未新增记录' : '差异已生成');
+  return body;
+}
+
+async function publish(scope) {
+  const body = await request('/api/publications', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({comparison_id: state.comparison.id, scope})});
+  await loadPublication();
+  state.view = 'publication';
+  location.hash = 'publication';
+  feedback(body.reused ? '该发布已存在，未新增记录' : '发布完成，旧版本已保留');
 }
 
 function switchView() {
@@ -127,6 +187,10 @@ function switchView() {
   for (const name of auxiliary) $(name).hidden = name !== state.view;
   if (hash === state.view) $(hash).scrollIntoView({block: 'nearest'});
   if (state.view === 'archive') loadHistory().catch((error) => feedback(error.message, true));
+  if (state.view === 'comparison' || state.view === 'publication') {
+    loadPublication().catch((error) => feedback(error.message, true));
+  }
+  if (state.view === 'comparison') loadHistory().catch((error) => feedback(error.message, true));
 }
 
 $('run-form').addEventListener('submit', (event) => {
@@ -143,6 +207,14 @@ $('upload').addEventListener('submit', (event) => {
     await archive({source_id: source.source_id});
   });
 });
+$('comparison-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const after = $('after-run').value.trim();
+  const before = $('before-run').value.trim();
+  act(() => generateComparison(before ? {after_run_id: after, before_run_id: before} : {after_run_id: after}));
+});
+$('publish-confirmed').addEventListener('click', () => act(() => publish('confirmed')));
+$('publish-all').addEventListener('click', () => act(() => publish('all')));
 $('rerun').addEventListener('click', () => act(async () => {
   const id = state.manifest.id;
   const run = await request(`/api/runs/${id}/rerun`, {method: 'POST'});

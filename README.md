@@ -7,7 +7,7 @@ docker compose up --build
 docker compose exec -T app pytest -q
 ```
 
-打开 [工作台](http://localhost:18430/) 或 [接口文档](http://localhost:18430/docs)。首页先展示礼堂样例预览。「运行提取」归档当前来源，「中心频率」联动曲线与拟合区间，「定位采样点」显示秒数、相对 dB 与来源行。「复测归档」可打开历史结果和重跑，顶部「导出证据」保存一份 JSON。可切换 GB18030 参考样例或在「脉冲响应收件」上传响应 CSV。
+打开 [工作台](http://localhost:18430/) 或 [接口文档](http://localhost:18430/docs)。首页先展示礼堂样例预览。「运行提取」归档当前来源，「中心频率」联动曲线与拟合区间，「定位采样点」显示秒数、相对 dB 与来源行。「复测归档」可打开历史结果和重跑，顶部「导出证据」保存一份 JSON。可切换 GB18030 参考样例或在「脉冲响应收件」上传响应 CSV。「改造差异」按频带列出改造前、改造后两个归档的版本与口径，口径一致的频带给出 RT60 改善值，其余只列不可比原因；「发布可确认频带」先行交付，「整厅发布」要求全部频带可比。
 
 ### 本地运行
 
@@ -32,5 +32,7 @@ SQLite 使用 Compose 命名卷 `measurements`。应用启动按内容摘要幂�
 | 噪声判废 | `GET /api/noise/{source_id}` | 测噪区间和动态范围 |
 | 频段勾稽 | `GET /api/reconcile/{source_id}` | 频带、采样行守恒和拟合标差 |
 | 复测归档 | `POST /api/runs`、`POST /api/runs/{id}/rerun` | 批次、摘要、复测与附件 |
+| 改造差异 | `POST /api/comparisons`、`GET /api/comparisons/{id}` | 逐频带两侧版本、口径判定与改善值 |
+| 差异发布 | `POST /api/publications`、`GET /api/publications/latest` | 可确认频带先行或整厅发布、失效留痕 |
 
 [数据定义](docs/DATA-DICTIONARY.md)说明输入限制和计算边界。[深度登记](docs/DEPTH.md)列出样例与对应测试。

@@ -14,6 +14,7 @@
 | M5 噪声判废 | 核对尾段噪声和两档动态范围 | `GET /api/noise/{source_id}` | `app/modules/m5_noise/gate.py` | `tests/test_noise.py` |
 | M6 频段勾稽 | 对频带和采样行勾稽，查看双档差异 | `GET /api/reconcile/{source_id}` | `app/modules/m6_reconcile/service.py` `app/modules/m6_reconcile/comparison.py` | `tests/test_reconcile.py` |
 | M7 复测归档 | 保存证据、重跑原输入并下载 | `POST /api/runs` | `app/modules/m7_archive/service.py` `app/modules/m7_archive/export.py` | `tests/test_archive.py` |
+| M8 改造差异 | 逐频带对照两侧版本，确认改善或列出不可比原因，并分范围发布 | `POST /api/comparisons` | `app/modules/m8_comparison/service.py` `app/modules/m8_comparison/comparison.py` | `tests/test_comparison.py` |
 
 ## 陷阱登记
 
@@ -33,7 +34,14 @@
 | TRAP-18 | 零字节、全空与仅表头 | 记录空结果为成功 | 返回独立的文件级原因 | `app/modules/m1_intake/reader.py` | `tests/test_intake.py::test_empty_cases_raise_distinct_codes` |
 | TRAP-19 | 测试中一个低块夹在可用区间 | 瞬态低块误判整个尾段 | 连续两块才截断 | `app/modules/m5_noise/gate.py` | `tests/test_noise.py::test_consecutive_low_blocks_cut_at_first_block` |
 | TRAP-23 | 测试曲线阈值等于样本值 | 跳过等号或将越界点纳入 | 明确交点与回归右端排除 | `app/modules/m4_fit/windows.py` | `tests/test_fit.py::test_threshold_crossing_interpolates_and_has_exclusive_stop` |
+| TRAP-24 | 旧归档按旧校准口径生成 | 与当前口径直接相减，把口径变化当成改善 | 两侧口径未登记或不一致时不计算改善值，只给原因 | `app/modules/m8_comparison/comparison.py` | `tests/test_comparison.py::test_legacy_archive_without_basis_is_blocked_with_reason` |
+| TRAP-25 | 人工补登记旧归档口径 | 改写成当前口径伪造可比 | 区分 `GENERATED`/`DECLARED`，规则生成的登记不可改写；改写已声明的口径使旧差异失效 | `app/modules/m8_comparison/service.py` | `tests/test_comparison.py::test_fixing_either_side_invalidates_old_difference_and_publication` |
+| TRAP-26 | 同一对归档反复生成差异 | 每次新增一条，周五拿到多份不一致的表 | 按两侧摘要与逐频带基线定位，重跑复用原记录 | `app/modules/m8_comparison/service.py` | `tests/test_comparison.py::test_same_pair_rerun_adds_no_record_and_keeps_evidence` |
+| TRAP-27 | 发布时一侧仍在旧口径 | 整厅数字混入不可比频带 | 可确认频带先行，整厅发布要求全部可比 | `app/modules/m8_comparison/service.py` | `tests/test_comparison.py::test_confirmed_scope_ships_now_and_defers_incomparable_band` |
+| TRAP-28 | 发布写入失败 | 丢失上一版对外数字 | 事务回滚并保留上一次发布 | `app/modules/m8_comparison/service.py` | `tests/test_comparison.py::test_publish_failure_rolls_back_and_keeps_previous_release` |
 
 ## 对账断言
 
 礼堂样例共 8 个频带，4 个可拟合、1 个动态范围不足、3 个隔离，频带及采样行差额均为零。8000 Hz 两档标差约 22.26%。
+
+改造差异以「参考样例为基线、礼堂样例为改造后」为例：8 个频带中 2 个口径一致可比（500 Hz 变差约 0.12 s，1000 Hz 改善约 0.04 s），6 个缺基线不可比；整厅发布被拒，可确认频带可先行发布。

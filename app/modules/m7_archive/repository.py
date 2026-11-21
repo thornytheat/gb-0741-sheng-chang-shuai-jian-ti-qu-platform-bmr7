@@ -2,12 +2,12 @@ import json
 
 from app.errors import Problem
 
-META = 'id, source_id, version, created_at, elapsed_ms, digest'
+META = 'id, source_id, version, basis, created_at, elapsed_ms, digest'
 
 
 def insert(connection, manifest, evidence):
     values = tuple(manifest[key] for key in META.split(', '))
-    cursor = connection.execute(f'INSERT INTO runs ({META}, evidence) VALUES (?, ?, ?, ?, ?, ?, ?) '
+    cursor = connection.execute(f'INSERT INTO runs ({META}, evidence) VALUES (?, ?, ?, ?, ?, ?, ?, ?) '
                                 'ON CONFLICT(id) DO NOTHING', (*values, evidence))
     return cursor.rowcount == 1
 
