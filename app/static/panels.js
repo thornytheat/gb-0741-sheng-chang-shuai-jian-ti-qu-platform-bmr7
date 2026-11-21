@@ -136,11 +136,11 @@ export function history(runs, current, pick) {
 }
 
 export function archiveOptions(runs) {
-  const options = runs.map((row) => new Option(
+  const option = (row) => new Option(
     `${row.id.slice(0, 8)} · ${row.source_id.slice(0, 8)} · ${row.basis ?? '口径未登记'}`,
-    row.id));
-  $('after-run').replaceChildren(new Option('—', ''), ...options);
-  $('before-run').replaceChildren(new Option('整厅不限', ''), ...options);
+    row.id);
+  $('after-run').replaceChildren(new Option('—', ''), ...runs.map(option));
+  $('before-run').replaceChildren(new Option('整厅不限', ''), ...runs.map(option));
 }
 
 const basisLabels = {BASIS_MISMATCH: '口径不同', BASIS_UNKNOWN: '口径未登记', VERSION_MISMATCH: '规则版本不同',
